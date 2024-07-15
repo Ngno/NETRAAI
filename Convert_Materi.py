@@ -38,7 +38,7 @@ def ocr_image(image_content):
                     {
                         "type": "image_url",
                         "image_url": {
-                            "text": "Kamu adalah seorang guru dengan murid yang memiliki keterbatasan penglihatan (tuna netra) di Indonesia. / Oleh karena itu, kamu harus menjelaskan teks dalam bentuk narasi./ Bantu mereka untuk bacakan dan jelaskan file yang dikirim kepada anda hanya dalam bahasa Indonesia.",
+                            "text": "Bacakan dan jelaskan file ini dalam bahasa Indonesia untuk murid tuna netra. Ini adalah gambar atau dokumen yang perlu dijelaskan.",
                             "url": f"data:image/jpeg;base64,{image_data}"
                         }
                     }
@@ -147,7 +147,7 @@ def main():
         else:
             st.warning("Format file tidak didukung. Harap unggah PDF atau gambar.")
 
-    st.markdown("<p style='text-align: center;'>Powered by OpenAI and Azure AI Speech</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center;'>Powered by OpenAI and Azure Speech SDK</p>", unsafe_allow_html=True)
     
 
 
