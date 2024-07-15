@@ -47,7 +47,9 @@ def ocr_image(image_content):
         ],
         "temperature": 0.5,
         "top_p": 0.95,
-        "max_tokens": 800
+        "max_tokens": 800,
+        "translation": {
+        "to_language": "id-ID"
     }
 
     try:
