@@ -78,10 +78,14 @@ def clean_text(text):
         text += '.'
     return text
 
-def translate_text(text, target_language='id'):
+# Function to translate text to Bahasa Indonesia if it is in English
+def translate_text_if_needed(text):
     translator = Translator()
-    translation = translator.translate(text, dest=target_language)
-    return translation.text
+    detected_lang = translator.detect(text).lang
+    if detected_lang != 'id':
+        translation = translator.translate(text, dest='id')
+        return translation.text
+    return text
 
 # Function to convert text to speech using Azure Speech SDK
 def text_to_speech(content):
@@ -111,6 +115,7 @@ def pdf_to_images(pdf_content):
 
 
 # Streamlit app
+# Streamlit app
 def main():
     st.title("NETRA AI")
 
@@ -129,8 +134,11 @@ def main():
             # Clean and format OCR result
             clean_ocr_result = clean_text(ocr_result)
 
+            # Translate OCR result to Bahasa Indonesia if needed
+            translated_ocr_result = translate_text_if_needed(clean_ocr_result)
+
             # Convert OCR result to speech
-            audio_file = text_to_speech(clean_ocr_result)
+            audio_file = text_to_speech(translated_ocr_result)
             st.audio(audio_file, format='audio/wav')
 
         elif file_type == 'application/pdf':
@@ -144,16 +152,17 @@ def main():
             # Clean and format full OCR result
             clean_full_ocr_result = clean_text(full_ocr_result)
 
+            # Translate OCR result to Bahasa Indonesia if needed
+            translated_full_ocr_result = translate_text_if_needed(clean_full_ocr_result)
+
             # Convert full OCR result to speech
-            audio_file = text_to_speech(clean_full_ocr_result)
+            audio_file = text_to_speech(translated_full_ocr_result)
             st.audio(audio_file, format='audio/wav')
 
         else:
             st.warning("Format file tidak didukung. Harap unggah PDF atau gambar.")
 
     st.markdown("<p style='text-align: center;'>Powered by OpenAI and Azure Speech SDK</p>", unsafe_allow_html=True)
-    
-
 
 if __name__ == '__main__':
     main()
