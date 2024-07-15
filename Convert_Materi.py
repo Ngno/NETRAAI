@@ -84,13 +84,13 @@ def text_to_speech(content):
     import azure.cognitiveservices.speech as speechsdk
 
     speech_config = speechsdk.SpeechConfig(subscription=SPEECH_KEY, region=SERVICE_REGION)
+    speech_config.speech_synthesis_language = "id-ID"  # Set the language to Bahasa Indonesia
     audio_config = speechsdk.audio.AudioOutputConfig(filename="output_audio.wav")  # Save audio to file
 
     speech_synthesizer = speechsdk.SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
     result = speech_synthesizer.speak_text_async(content).get()
 
     return "output_audio.wav"
-
 
 # Function to convert PDF to images
 def pdf_to_images(pdf_content):
@@ -147,7 +147,8 @@ def main():
         else:
             st.warning("Format file tidak didukung. Harap unggah PDF atau gambar.")
 
-    st.markdown("<p style='text-align: center;'>Powered by OpenAI and Azure Speech SDK</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center;'>Powered by OpenAI and Azure AI Speech</p>", unsafe_allow_html=True)
+    
 
 
 if __name__ == '__main__':
