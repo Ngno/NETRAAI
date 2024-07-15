@@ -48,8 +48,6 @@ def ocr_image(image_content):
         "temperature": 0.5,
         "top_p": 0.95,
         "max_tokens": 800,
-        "translation": {
-        "to_language": "id-ID"
     }
 
     try:
@@ -66,7 +64,7 @@ def ocr_image(image_content):
 
     return ocr_text
 
-
+    
 # Function to clean and format text
 def clean_text(text):
     # Replace multiple spaces with a single space
@@ -80,6 +78,10 @@ def clean_text(text):
         text += '.'
     return text
 
+def translate_text(text, target_language='id'):
+    translator = Translator()
+    translation = translator.translate(text, dest=target_language)
+    return translation.text
 
 # Function to convert text to speech using Azure Speech SDK
 def text_to_speech(content):
