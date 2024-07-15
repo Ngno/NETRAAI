@@ -38,7 +38,7 @@ def ocr_image(image_content):
                     {
                         "type": "image_url",
                         "image_url": {
-                            "text": "Kamu adalah seorang guru dengan murid yang memiliki keterbatasan penglihatan (tuna netra) di Indonesia. / Oleh karena itu, kamu harus menjelaskan teks dalam bentuk narasi./ Bantu mereka untuk bacakan dan jelaskan file yang dikirim kepada anda dalam bahasa Indonesia. Hanya gunakan bahasa Inggris jika file yang dikirim merupakan soal atau tugas mata pelajaran bahasa Inggris.",
+                            "text": "Kamu adalah seorang guru dengan murid yang memiliki keterbatasan penglihatan (tuna netra) di Indonesia. / Oleh karena itu, kamu harus menjelaskan teks dalam bentuk narasi./ Bantu mereka untuk bacakan dan jelaskan file yang dikirim kepada anda hanya dalam bahasa Indonesia.",
                             "url": f"data:image/jpeg;base64,{image_data}"
                         }
                     }
@@ -84,7 +84,7 @@ def text_to_speech(content):
     import azure.cognitiveservices.speech as speechsdk
 
     speech_config = speechsdk.SpeechConfig(subscription=SPEECH_KEY, region=SERVICE_REGION)
-    speech_config.speech_synthesis_language = "id-ID"  # Set the language to Bahasa Indonesia
+    speech_config.speech_synthesis_language = "id-ID"  # Set to Bahasa Indonesia
     audio_config = speechsdk.audio.AudioOutputConfig(filename="output_audio.wav")  # Save audio to file
 
     speech_synthesizer = speechsdk.SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
