@@ -8,7 +8,6 @@ from dotenv import load_dotenv
 import os
 import re
 import json
-import azure.cognitiveservices.speech as speechsdk
 
 # Load environment variables
 load_dotenv()
@@ -62,17 +61,13 @@ def perform_transcription(image_content):
         return None
 
 # Function to translate text to Bahasa Indonesia using OpenAI
-def translate_text(text):
+def translate_to_indonesian(text):
     headers = {
         "Content-Type": "application/json",
         "api-key": AZURE_OPENAI_API_KEY,
     }
 
-    # Check if the text is already in Bahasa Indonesia
-    if detect_language(text) == 'id':
-        return text
-
-    prompt = f"Please translate the following text to Bahasa Indonesia:\n\n{text}"
+    prompt = f"Terjemahkan teks berikut ke Bahasa Indonesia:\n\n{text}"
     payload = {
         "messages": [
             {
@@ -102,43 +97,6 @@ def translate_text(text):
         print(f"Failed to make the request. Error: {e}")
         return None
 
-# Function to detect language using OpenAI
-def detect_language(text):
-    headers = {
-        "Content-Type": "application/json",
-        "api-key": AZURE_OPENAI_API_KEY,
-    }
-
-    prompt = f"Detect the language of the following text:\n\n{text}"
-    payload = {
-        "messages": [
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ],
-        "temperature": 0.5,
-        "top_p": 0.95,
-        "max_tokens": 50,  # Adjust max tokens based on the expected length of text
-    }
-
-    try:
-        response = requests.post(
-            f"{AZURE_OPENAI_ENDPOINT}/openai/deployments/gpt-4o/chat/completions?api-version=2024-02-15-preview",
-            headers=headers, json=payload)
-        response.raise_for_status()
-        res = response.json()
-        print(f'Detect Language API Response: {json.dumps(res, indent=2)}')  # Detailed API response for debugging
-        if 'choices' in res and len(res['choices']) > 0:
-            detected_lang = res['choices'][0]['message']['content']
-            return detected_lang
-        else:
-            print('No valid response from API')
-            return None
-    except requests.RequestException as e:
-        print(f"Failed to make the request. Error: {e}")
-        return None
-
 # Function to clean and format text
 def clean_text(text):
     text = re.sub(r'\s+', ' ', text)
@@ -147,19 +105,6 @@ def clean_text(text):
     if text and text[-1] not in {'.', '!', '?'}:
         text += '.'
     return text
-
-# Function to convert text to speech using Azure Speech SDK
-def text_to_speech(content):
-    import azure.cognitiveservices.speech as speechsdk
-
-    speech_config = speechsdk.SpeechConfig(subscription=SPEECH_KEY, region=SERVICE_REGION)
-    speech_config.speech_synthesis_language = "id-ID"
-    audio_config = speechsdk.audio.AudioOutputConfig(filename="output_audio.wav")
-
-    speech_synthesizer = speechsdk.SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
-    result = speech_synthesizer.speak_text_async(content).get()
-
-    return "output_audio.wav"
 
 # Function to convert PDF to images
 def pdf_to_images(pdf_content):
@@ -189,10 +134,9 @@ def main():
             transcription_output = perform_transcription(file_content)
             if transcription_output:
                 st.write(f'Transcription Output: {transcription_output}')  # Debugging statement to check the transcription output
-                translated_result = translate_text(transcription_output)
+                translated_result = translate_to_indonesian(transcription_output)
                 if translated_result:
-                    audio_file = text_to_speech(translated_result)
-                    st.audio(audio_file, format='audio/wav')
+                    st.write(f'Translated Output: {translated_result}')
                 else:
                     st.error("Failed to translate the transcription output.")
             else:
@@ -207,10 +151,9 @@ def main():
                     full_transcription_output += transcription_output + "\n"
             if full_transcription_output:
                 st.write(f'Full Transcription Output: {full_transcription_output}')  # Debugging statement to check the full transcription output
-                translated_result = translate_text(full_transcription_output)
+                translated_result = translate_to_indonesian(full_transcription_output)
                 if translated_result:
-                    audio_file = text_to_speech(translated_result)
-                    st.audio(audio_file, format='audio/wav')
+                    st.write(f'Translated Output: {translated_result}')
                 else:
                     st.error("Failed to translate the transcription output from PDF.")
             else:
