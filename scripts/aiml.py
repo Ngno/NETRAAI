@@ -124,7 +124,7 @@ def tts(content, audio_path=None):
         'vi': 'vi-VN-HoaiMyNeural'       # Bahasa Vietnam
     }
 
-     voice = voice_map.get(detected_language, 'id-ID-GadisNeural')
+    voice = voice_map.get(detected_language, 'id-ID-GadisNeural')
     speech_config.speech_synthesis_voice_name = voice
     audio_config = speechsdk.audio.AudioOutputConfig(filename=audio_path)
     speech_synthesizer = speechsdk.SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
