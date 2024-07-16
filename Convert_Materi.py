@@ -50,6 +50,7 @@ def perform_transcription(image_content):
         response.raise_for_status()
         res = response.json()
         print(f'API Response: {json.dumps(res, indent=2)}')  # Detailed API response for debugging
+
         if 'choices' in res and len(res['choices']) > 0:
             transcription_output = res['choices'][0]['message']['content']
             return transcription_output
