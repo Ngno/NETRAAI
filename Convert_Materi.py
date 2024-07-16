@@ -6,6 +6,7 @@ from PIL import Image
 from io import BytesIO
 import os
 import json
+import re
 
 # Credentials (ensure these are set in your environment variables or replace with actual values)
 AZURE_OPENAI_API_KEY = os.getenv('AZURE_OPENAI_API_KEY')
@@ -20,7 +21,6 @@ def ocr_image(image_content):
         "api-key": AZURE_OPENAI_API_KEY,
     }
 
-    # Prompt in Indonesian for OCR
     prompt = "Bacakan dan jelaskan gambar ini untuk murid tuna netra. Gunakan bahasa Indonesia."
     payload = {
         "messages": [
@@ -40,7 +40,6 @@ def ocr_image(image_content):
             headers=headers, json=payload)
         response.raise_for_status()
         res = response.json()
-        print(f'API Response: {json.dumps(res, indent=2)}')  # Detailed API response for debugging
 
         if 'choices' in res and len(res['choices']) > 0:
             ocr_output = res['choices'][0]['message']['content']
@@ -50,11 +49,9 @@ def ocr_image(image_content):
             else:
                 return ocr_output
         else:
-            print('No valid response from API')
             return None
 
     except requests.RequestException as e:
-        print(f"Failed to make the request. Error: {e}")
         return None
 
 # Function to translate text to Bahasa Indonesia using OpenAI
@@ -83,17 +80,14 @@ def translate_text(text):
             headers=headers, json=payload)
         response.raise_for_status()
         res = response.json()
-        print(f'Translation API Response: {json.dumps(res, indent=2)}')  # Detailed API response for debugging
 
         if 'choices' in res and len(res['choices']) > 0:
             translated_text = res['choices'][0]['message']['content']
             return translated_text
         else:
-            print('No valid response from API')
             return None
 
     except requests.RequestException as e:
-        print(f"Failed to make the request. Error: {e}")
         return None
 
 # Function to detect language using OpenAI
@@ -122,18 +116,28 @@ def detect_language(text):
             headers=headers, json=payload)
         response.raise_for_status()
         res = response.json()
-        print(f'Language Detection API Response: {json.dumps(res, indent=2)}')  # Detailed API response for debugging
 
         if 'choices' in res and len(res['choices']) > 0:
             detected_lang = res['choices'][0]['message']['content']
             return detected_lang.strip().lower()  # Ensure lowercase for consistency
         else:
-            print('No valid response from API')
             return None
 
     except requests.RequestException as e:
-        print(f"Failed to make the request. Error: {e}")
         return None
+
+# Function to convert PDF to images
+def pdf_to_images(pdf_content):
+    pdf_document = fitz.open(stream=pdf_content, filetype="pdf")
+    images = []
+    for page_num in range(len(pdf_document)):
+        page = pdf_document.load_page(page_num)
+        pix = page.get_pixmap()
+        img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+        img_byte_arr = BytesIO()
+        img.save(img_byte_arr, format='PNG')
+        images.append(img_byte_arr.getvalue())
+    return images
 
 # Streamlit app
 def main():
@@ -149,10 +153,7 @@ def main():
         if file_type.startswith('image/'):
             ocr_result = ocr_image(file_content)
             if ocr_result:
-                st.write(f'OCR Output: {ocr_result}')  # Debugging statement to check the OCR output
-                # Assuming you have a function to convert text to speech
-                # audio_file = text_to_speech(ocr_result)
-                # st.audio(audio_file, format='audio/wav')
+                st.write(f'OCR Output: {ocr_result}')  # Display OCR output
 
         elif file_type == 'application/pdf':
             images = pdf_to_images(file_content)
@@ -163,10 +164,7 @@ def main():
                     full_ocr_result += ocr_result + "\n"
 
             if full_ocr_result:
-                st.write(f'Full OCR Output: {full_ocr_result}')  # Debugging statement to check the full OCR output
-                # Assuming you have a function to convert text to speech
-                # audio_file = text_to_speech(full_ocr_result)
-                # st.audio(audio_file, format='audio/wav')
+                st.write(f'Full OCR Output: {full_ocr_result}')  # Display full OCR output
 
     st.markdown("<p style='text-align: center;'>Powered by OpenAI</p>", unsafe_allow_html=True)
 
