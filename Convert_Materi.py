@@ -29,20 +29,13 @@ def ocr_image(image_content):
         "api-key": AZURE_OPENAI_API_KEY,
     }
 
-    prompt = f"Bacakan dan jelaskan file ini dalam bahasa Indonesia untuk murid tuna netra. Ini adalah gambar atau dokumen yang perlu dijelaskan."
+    # Rephrased prompt for clarity
+    prompt = "Terjemahkan dan jelaskan konten gambar ini dalam bahasa Indonesia untuk murid tunanetra. Ini adalah gambar atau dokumen yang perlu dijelaskan."
     payload = {
         "messages": [
             {
                 "role": "user",
-                "content": [
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "text": prompt,
-                            "url": f"data:image/jpeg;base64,{image_data}"
-                        }
-                    }
-                ]
+                "content": f"{prompt}\n\n![gambar](data:image/jpeg;base64,{image_data})"
             }
         ],
         "temperature": 0.5,
