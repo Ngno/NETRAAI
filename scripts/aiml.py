@@ -34,7 +34,7 @@ def explain_image(encoded_image):
                 "content": [
                     {
                         "type": "text",
-                        "text": "Kamu adalah seorang guru di sekolah luar biasa (SLB). Saat ini kamu sedang mengadakan ujian. Peserta didik memiliki keterbatasan penglihatan (tuna netra). Oleh karena itu, kamu harus menjelaskan soal ujian berikut ini dalam bentuk narasi.\n\nIngat, hanya sampaikan soal ujiannya saja, tidak perlu dijawab."
+                        "text": "Kamu adalah seorang guru di sekolah luar biasa (SLB). Saat ini kamu sedang mengadakan ujian. Peserta didik memiliki keterbatasan penglihatan (tuna netra). Oleh karena itu, kamu harus menjelaskan soal ujian berikut ini dalam bentuk narasi.\n\nIngat, hanya sampaikan soal ujian nya saja, tidak perlu di jawab."
                     }
                 ]
             },
@@ -56,14 +56,12 @@ def explain_image(encoded_image):
     }
 
     try:
-        print('Calling GPT...')
         GPT4V_ENDPOINT = f"{AZURE_OPENAI_ENDPOINT}/openai/deployments/gpt-4o/chat/completions?api-version=2024-02-15-preview"
         response = requests.post(GPT4V_ENDPOINT, headers=headers, json=payload)
         response.raise_for_status()
     except requests.RequestException as e:
         raise SystemExit(f"Failed to make the request. Error: {e}")
 
-    print(f'Response: {response.text}')
     res = response.json()
     return res['choices'][0]['message']['content']
 
@@ -90,13 +88,14 @@ def tts(content, audio_path=None):
 
     def language_detection(client, content):
         try:
-            response = client.detect_language(documents=[content])[0]
+            response = client.detect_language(documents=[content], country_hint='us')[0]
             return response.primary_language.iso6391_name
         except Exception as err:
-            print(f"Encountered exception. {err}")
+            print(f"Encountered exception: {err}")
             return "unknown"
 
     detected_language = language_detection(client, content)
+
 
     voice_map = {
         'id': 'id-ID-GadisNeural',       # Bahasa Indonesia
@@ -125,7 +124,7 @@ def tts(content, audio_path=None):
         'vi': 'vi-VN-HoaiMyNeural'       # Bahasa Vietnam
     }
 
-    voice = voice_map.get(detected_language, 'en-US-GuyNeural') # Default to English if language not found
+     voice = voice_map.get(detected_language, 'id-ID-GadisNeural')
     speech_config.speech_synthesis_voice_name = voice
     audio_config = speechsdk.audio.AudioOutputConfig(filename=audio_path)
     speech_synthesizer = speechsdk.SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
@@ -136,12 +135,12 @@ def tts(content, audio_path=None):
 
 def stt(audio_path):
     speech_config = speechsdk.SpeechConfig(subscription=SPEECH_KEY, region=SERVICE_REGION)
-    source_language_config = speechsdk.languageconfig.SourceLanguageConfig("id-ID")
+    source_language_config = speechsdk.languageconfig.SourceLanguageConfig("id-ID")  
     audio_config = speechsdk.audio.AudioConfig(filename=audio_path)
 
-    speech_recognizer = speechsdk.SpeechRecognizer(
-        speech_config=speech_config,
-        source_language_config=source_language_config,
+    speech_recognizer = speechsdk.SpeechRecognizer(  
+        speech_config=speech_config, 
+        source_language_config=source_language_config, 
         audio_config=audio_config
     )
 
@@ -184,16 +183,16 @@ def grade_choices(question, answer):
             },
             {
                 "role": "system",
-                "content": question.strip()
+                "content": question
             },
             {
                 "role": "user",
-                "content": answer.strip()
+                "content": answer
             },
             {
                 "role": "assistant",
                 "content": "Berdasarkan jawaban pengguna di atas ini, berikan penilaian dalam format berikut: Jawaban: BENAR atau SALAH Penjelasan: Jelaskan jawaban yang benar"
-            },
+            }
         ],
         tools=tools,
         tool_choice={"type": "function", "function": {"name": "berikan_penilaian"}}
@@ -207,9 +206,7 @@ def grade_choices(question, answer):
 
 
 def grade_essay(question, answer):
-    # TODO
     raise NotImplementedError
-
 
     tools = [
         {
@@ -229,46 +226,39 @@ def grade_essay(question, answer):
                             "description": "Jelaskan jawaban yang benar",
                         },
                     },
-                    "required": ["benar_salah", "penjelasan"],
+                    "required": ["nilai", "penjelasan"],
                 },
             },
         }
     ]
 
-    client = AzureOpenAI(
-        api_version="2024-02-01",
-    )
+    client = AzureOpenAI(api_version="2024-02-01")
     completion = client.chat.completions.create(
-        model="gpt-35-turbo" ,
+        model="gpt-35-turbo",
         messages=[
             {
                 "role": "system",
-                "content": """Kamu adalah seorang guru yang saat ini sedang mengadakan ujian. Soal berupa pilihan ganda. 
-    Berikut adalah solanya:""".strip(),
+                "content": "Kamu adalah seorang guru yang saat ini sedang mengadakan ujian. Soal berupa esai. Berikut adalah soalnya:"
             },
             {
                 "role": "system",
-                "content": question.strip(),
+                "content": question
             },
             {
                 "role": "user",
-                "content": answer.strip(),
+                "content": answer
             },
             {
                 "role": "assistant",
-                "content": """
-    Berdasarkan jawaban pengguna di atas ini, berikan penilaian dalam format berikut:
-    Jawaban: BENAR atau SALAH
-    Penjelasan: Jelaskan jawaban yang benar""".strip()
-            },
+                "content": "Berdasarkan jawaban pengguna di atas ini, berikan penilaian dalam format berikut: Nilai: 0-10 Penjelasan: Jelaskan jawaban yang benar"
+            }
         ],
         tools=tools,
         tool_choice={"type": "function", "function": {"name": "berikan_penilaian"}}
     )
-        
-    # print(completion.to_json())
+
     args = json.loads(completion.choices[0].message.tool_calls[0].function.arguments)
-    is_correct = args['benar_salah']
+    grade = args['nilai']
     explanation = args['penjelasan']
 
-    return is_correct, explanation
+    return grade, explanation
