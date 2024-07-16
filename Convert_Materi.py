@@ -28,8 +28,8 @@ def ocr_image(image_content):
         "Content-Type": "application/json",
         "api-key": AZURE_OPENAI_API_KEY,
     }
-
-    prompt = f"Terjemahkan dan jelaskan konten gambar ini dalam bahasa Indonesia untuk murid tunanetra. Ini adalah gambar atau dokumen yang perlu dijelaskan."
+    
+    prompt = "Please read and describe this image or document in Bahasa Indonesia for visually impaired students. Ini adalah gambar atau dokumen yang perlu dijelaskan dalam Bahasa Indonesia."
     payload = {
         "messages": [
             {
