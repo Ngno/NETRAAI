@@ -7,6 +7,8 @@ from io import BytesIO
 from dotenv import load_dotenv
 import os
 import re
+import json
+import azure.cognitiveservices.speech as speechsdk
 
 # Load environment variables
 load_dotenv()
@@ -21,28 +23,20 @@ print(f'SPEECH_KEY: {SPEECH_KEY}')
 print(f'SERVICE_REGION: {SERVICE_REGION}')
 
 # Function to perform OCR using OpenAI
-def ocr_image(image_content):
+def perform_transcription(image_content):
     image_data = base64.b64encode(image_content).decode('utf-8')
 
     headers = {
         "Content-Type": "application/json",
         "api-key": AZURE_OPENAI_API_KEY,
     }
-    
-    prompt = "Please read and describe this image or document in Bahasa Indonesia for visually impaired students. Ini adalah gambar atau dokumen yang perlu dijelaskan dalam Bahasa Indonesia."
+
+    prompt = "Bacakan dan jelaskan gambar ini untuk murid tuna netra. Gunakan bahasa Indonesia."
     payload = {
         "messages": [
             {
                 "role": "user",
-                "content": [
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "text": prompt,
-                            "url": f"data:image/jpeg;base64,{image_data}"
-                        }
-                    }
-                ]
+                "content": f"{prompt}\n\n![image](data:image/jpeg;base64,{image_data})"
             }
         ],
         "temperature": 0.5,
@@ -56,12 +50,94 @@ def ocr_image(image_content):
             headers=headers, json=payload)
         response.raise_for_status()
         res = response.json()
-        print(f'API Response: {res}')  # Debugging statement to check the response
-        ocr_text = res['choices'][0]['message']['content']
+        print(f'API Response: {json.dumps(res, indent=2)}')  # Detailed API response for debugging
+        if 'choices' in res and len(res['choices']) > 0:
+            transcription_output = res['choices'][0]['message']['content']
+            return transcription_output
+        else:
+            print('No valid response from API')
+            return None
     except requests.RequestException as e:
-        raise SystemExit(f"Failed to make the request. Error: {e}")
+        print(f"Failed to make the request. Error: {e}")
+        return None
 
-    return ocr_text
+# Function to translate text to Bahasa Indonesia using OpenAI
+def translate_text(text):
+    headers = {
+        "Content-Type": "application/json",
+        "api-key": AZURE_OPENAI_API_KEY,
+    }
+
+    # Check if the text is already in Bahasa Indonesia
+    if detect_language(text) == 'id':
+        return text
+
+    prompt = f"Please translate the following text to Bahasa Indonesia:\n\n{text}"
+    payload = {
+        "messages": [
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        "temperature": 0.5,
+        "top_p": 0.95,
+        "max_tokens": 800,
+    }
+
+    try:
+        response = requests.post(
+            f"{AZURE_OPENAI_ENDPOINT}/openai/deployments/gpt-4o/chat/completions?api-version=2024-02-15-preview",
+            headers=headers, json=payload)
+        response.raise_for_status()
+        res = response.json()
+        print(f'Translation API Response: {json.dumps(res, indent=2)}')  # Detailed API response for debugging
+        if 'choices' in res and len(res['choices']) > 0:
+            translated_text = res['choices'][0]['message']['content']
+            return translated_text
+        else:
+            print('No valid response from API')
+            return None
+    except requests.RequestException as e:
+        print(f"Failed to make the request. Error: {e}")
+        return None
+
+# Function to detect language using OpenAI
+def detect_language(text):
+    headers = {
+        "Content-Type": "application/json",
+        "api-key": AZURE_OPENAI_API_KEY,
+    }
+
+    prompt = f"Detect the language of the following text:\n\n{text}"
+    payload = {
+        "messages": [
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        "temperature": 0.5,
+        "top_p": 0.95,
+        "max_tokens": 50,  # Adjust max tokens based on the expected length of text
+    }
+
+    try:
+        response = requests.post(
+            f"{AZURE_OPENAI_ENDPOINT}/openai/deployments/gpt-4o/chat/completions?api-version=2024-02-15-preview",
+            headers=headers, json=payload)
+        response.raise_for_status()
+        res = response.json()
+        print(f'Detect Language API Response: {json.dumps(res, indent=2)}')  # Detailed API response for debugging
+        if 'choices' in res and len(res['choices']) > 0:
+            detected_lang = res['choices'][0]['message']['content']
+            return detected_lang
+        else:
+            print('No valid response from API')
+            return None
+    except requests.RequestException as e:
+        print(f"Failed to make the request. Error: {e}")
+        return None
 
 # Function to clean and format text
 def clean_text(text):
@@ -110,22 +186,35 @@ def main():
         file_type = uploaded_file.type
 
         if file_type.startswith('image/'):
-            ocr_result = ocr_image(file_content)
-            st.write(f'OCR Result: {ocr_result}')  # Debugging statement to check the OCR result
-            clean_ocr_result = clean_text(ocr_result)
-            audio_file = text_to_speech(clean_ocr_result)
-            st.audio(audio_file, format='audio/wav')
+            transcription_output = perform_transcription(file_content)
+            if transcription_output:
+                st.write(f'Transcription Output: {transcription_output}')  # Debugging statement to check the transcription output
+                translated_result = translate_text(transcription_output)
+                if translated_result:
+                    audio_file = text_to_speech(translated_result)
+                    st.audio(audio_file, format='audio/wav')
+                else:
+                    st.error("Failed to translate the transcription output.")
+            else:
+                st.error("Failed to perform transcription.")
 
         elif file_type == 'application/pdf':
             images = pdf_to_images(file_content)
-            full_ocr_result = ""
+            full_transcription_output = ""
             for image in images:
-                ocr_result = ocr_image(image)
-                full_ocr_result += ocr_result + "\n"
-            st.write(f'Full OCR Result: {full_ocr_result}')  # Debugging statement to check the full OCR result
-            clean_full_ocr_result = clean_text(full_ocr_result)
-            audio_file = text_to_speech(clean_full_ocr_result)
-            st.audio(audio_file, format='audio/wav')
+                transcription_output = perform_transcription(image)
+                if transcription_output:
+                    full_transcription_output += transcription_output + "\n"
+            if full_transcription_output:
+                st.write(f'Full Transcription Output: {full_transcription_output}')  # Debugging statement to check the full transcription output
+                translated_result = translate_text(full_transcription_output)
+                if translated_result:
+                    audio_file = text_to_speech(translated_result)
+                    st.audio(audio_file, format='audio/wav')
+                else:
+                    st.error("Failed to translate the transcription output from PDF.")
+            else:
+                st.error("Failed to perform transcription from PDF.")
 
         else:
             st.warning("Format file tidak didukung. Harap unggah PDF atau gambar.")
