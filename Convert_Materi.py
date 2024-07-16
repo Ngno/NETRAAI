@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 import os
 import re
 
-# load_dotenv()
+load_dotenv()
 
 # Credentials
 AZURE_OPENAI_API_KEY = os.getenv('AZURE_OPENAI_API_KEY')
