@@ -18,6 +18,7 @@ print(f'SPEECH_KEY: {SPEECH_KEY}')
 print(f'SERVICE_REGION: {SERVICE_REGION}')
 
 # Function to perform OCR using OpenAI (Note: OpenAI does not provide direct OCR service)
+# Function to perform OCR using OpenAI (Note: OpenAI does not provide direct OCR service)
 def ocr_image(image_content):
     image_data = base64.b64encode(image_content).decode('utf-8')
 
@@ -52,10 +53,10 @@ def ocr_image(image_content):
             return ocr_text
         else:
             print('No valid response from API')
-            return None
+            return ''  # Return empty string if no valid response
     except requests.RequestException as e:
         print(f"Failed to make the request. Error: {e}")
-        return None
+        return ''  # Return empty string on request exception
 
 # Function to translate text to Bahasa Indonesia using OpenAI
 def translate_text(text):
@@ -138,13 +139,18 @@ def detect_language(text):
         return None
 
 # Function to clean and format text
+# Function to clean and format text
 def clean_text(text):
-    text = re.sub(r'\s+', ' ', text)
-    text = text.replace('\\', '')
-    text = re.sub(r'(?<!\.)\n(?!\.)', '. ', text)
-    if text and text[-1] not in {'.', '!', '?'}:
-        text += '.'
-    return text
+    if text:
+        text = re.sub(r'\s+', ' ', text)
+        text = text.replace('\\', '')
+        text = re.sub(r'(?<!\.)\n(?!\.)', '. ', text)
+        if text and text[-1] not in {'.', '!', '?'}:
+            text += '.'
+        return text
+    else:
+        return ''
+
 
 # Function to convert text to speech using Azure Speech SDK
 def text_to_speech(content):
