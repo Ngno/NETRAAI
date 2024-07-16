@@ -8,7 +8,11 @@ import os
 import re
 import json
 
-# Credentials - Replace with your actual environment variables or load from .env
+# Load environment variables
+from dotenv import load_dotenv
+load_dotenv()
+
+# Credentials
 AZURE_OPENAI_API_KEY = os.getenv('AZURE_OPENAI_API_KEY')
 AZURE_OPENAI_ENDPOINT = os.getenv('AZURE_OPENAI_ENDPOINT')
 SPEECH_KEY = os.getenv('SPEECH_KEY')
@@ -17,8 +21,7 @@ SERVICE_REGION = os.getenv('SERVICE_REGION')
 print(f'SPEECH_KEY: {SPEECH_KEY}')
 print(f'SERVICE_REGION: {SERVICE_REGION}')
 
-# Function to perform OCR using OpenAI (Note: OpenAI does not provide direct OCR service)
-# Function to perform OCR using OpenAI (Note: OpenAI does not provide direct OCR service)
+# Function to perform OCR using OpenAI
 def ocr_image(image_content):
     image_data = base64.b64encode(image_content).decode('utf-8')
 
@@ -57,6 +60,18 @@ def ocr_image(image_content):
     except requests.RequestException as e:
         print(f"Failed to make the request. Error: {e}")
         return ''  # Return empty string on request exception
+
+# Function to clean and format text
+def clean_text(text):
+    if text:
+        text = re.sub(r'\s+', ' ', text)
+        text = text.replace('\\', '')
+        text = re.sub(r'(?<!\.)\n(?!\.)', '. ', text)
+        if text and text[-1] not in {'.', '!', '?'}:
+            text += '.'
+        return text
+    else:
+        return ''
 
 # Function to translate text to Bahasa Indonesia using OpenAI
 def translate_text(text):
@@ -138,49 +153,11 @@ def detect_language(text):
         print(f"Failed to make the request. Error: {e}")
         return None
 
-# Function to clean and format text
-# Function to clean and format text
-def clean_text(text):
-    if text:
-        text = re.sub(r'\s+', ' ', text)
-        text = text.replace('\\', '')
-        text = re.sub(r'(?<!\.)\n(?!\.)', '. ', text)
-        if text and text[-1] not in {'.', '!', '?'}:
-            text += '.'
-        return text
-    else:
-        return ''
-
-
-# Function to convert text to speech using Azure Speech SDK
-def text_to_speech(content):
-    import azure.cognitiveservices.speech as speechsdk
-
-    speech_config = speechsdk.SpeechConfig(subscription=SPEECH_KEY, region=SERVICE_REGION)
-    audio_config = speechsdk.audio.AudioOutputConfig(filename="output_audio.wav")  # Save audio to file
-
-    speech_synthesizer = speechsdk.SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
-    result = speech_synthesizer.speak_text_async(content).get()
-
-    return "output_audio.wav"
-
-# Function to convert PDF to images
-def pdf_to_images(pdf_content):
-    pdf_document = fitz.open(stream=pdf_content, filetype="pdf")
-    images = []
-    for page_num in range(len(pdf_document)):
-        page = pdf_document.load_page(page_num)
-        pix = page.get_pixmap()
-        img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-        img_byte_arr = BytesIO()
-        img.save(img_byte_arr, format='PNG')
-        images.append(img_byte_arr.getvalue())
-    return images
-
 # Streamlit app
 def main():
     st.title("NETRA AI")
 
+    # Centering the main content
     st.header("Ubah Materi Teks dan Gambar Menjadi Audio")
     uploaded_file = st.file_uploader("Pilih file PDF atau Gambar", type=['pdf', 'jpg', 'jpeg', 'png'])
 
@@ -194,15 +171,17 @@ def main():
 
             # Clean and format OCR result
             clean_ocr_result = clean_text(ocr_result)
+            st.write(f'OCR Output: {clean_ocr_result}')  # Debugging statement to check OCR output
 
             # Translate OCR result to Bahasa Indonesia
-            translated_result = translate_text(clean_ocr_result)
-            if translated_result:
-                # Convert translated text to speech
-                audio_file = text_to_speech(translated_result)
-                st.audio(audio_file, format='audio/wav')
+            if clean_ocr_result:
+                translated_result = translate_text(clean_ocr_result)
+                if translated_result:
+                    st.write(f'Translated Output: {translated_result}')  # Debugging statement to check translation output
+                else:
+                    st.error("Failed to translate OCR output.")
             else:
-                st.error("Failed to translate OCR output.")
+                st.error("Failed to perform OCR.")
 
         elif file_type == 'application/pdf':
             # Process PDF pages to images and perform OCR on each page
@@ -210,19 +189,22 @@ def main():
             full_ocr_result = ""
             for image in images:
                 ocr_result = ocr_image(image)
-                full_ocr_result += ocr_result + "\n"
+                if ocr_result:
+                    full_ocr_result += ocr_result + "\n"
 
             # Clean and format full OCR result
             clean_full_ocr_result = clean_text(full_ocr_result)
+            st.write(f'Full OCR Output: {clean_full_ocr_result}')  # Debugging statement to check full OCR output
 
             # Translate full OCR result to Bahasa Indonesia
-            translated_result = translate_text(clean_full_ocr_result)
-            if translated_result:
-                # Convert translated text to speech
-                audio_file = text_to_speech(translated_result)
-                st.audio(audio_file, format='audio/wav')
+            if clean_full_ocr_result:
+                translated_result = translate_text(clean_full_ocr_result)
+                if translated_result:
+                    st.write(f'Translated Output: {translated_result}')  # Debugging statement to check translation output
+                else:
+                    st.error("Failed to translate full OCR output.")
             else:
-                st.error("Failed to translate OCR output.")
+                st.error("Failed to perform OCR from PDF.")
 
         else:
             st.warning("Format file tidak didukung. Harap unggah PDF atau gambar.")
