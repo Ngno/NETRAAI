@@ -7,10 +7,8 @@ from io import BytesIO
 from dotenv import load_dotenv
 import os
 import re
-import json
 
-# Load environment variables
-load_dotenv()
+# load_dotenv()
 
 # Credentials
 AZURE_OPENAI_API_KEY = os.getenv('AZURE_OPENAI_API_KEY')
@@ -18,11 +16,13 @@ AZURE_OPENAI_ENDPOINT = os.getenv('AZURE_OPENAI_ENDPOINT')
 SPEECH_KEY = os.getenv('SPEECH_KEY')
 SERVICE_REGION = os.getenv('SERVICE_REGION')
 
-print(f'SPEECH_KEY: {SPEECH_KEY}')
-print(f'SERVICE_REGION: {SERVICE_REGION}')
 
-# Function to perform OCR using OpenAI
-def perform_transcription(image_content):
+# SERVICE_REGION = "southeastasia"
+print(f'SPEECH_KEY 2: {SPEECH_KEY}')
+print(f'SERVICE_REGION 2: {SERVICE_REGION}')
+
+# Function to perform OCR using OpenAI (Note: OpenAI does not provide direct OCR service)
+def ocr_image(image_content):
     image_data = base64.b64encode(image_content).decode('utf-8')
 
     headers = {
@@ -30,17 +30,24 @@ def perform_transcription(image_content):
         "api-key": AZURE_OPENAI_API_KEY,
     }
 
-    prompt = "Bacakan dan jelaskan gambar ini untuk murid tuna netra. Gunakan bahasa Indonesia."
     payload = {
         "messages": [
             {
                 "role": "user",
-                "content": f"{prompt}\n\n![image](data:image/jpeg;base64,{image_data})"
+                "content": [
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "text": "Kamu adalah seorang guru dengan murid yang memiliki keterbatasan penglihatan (tuna netra). / Oleh karena itu, kamu harus menjelaskan teks dalam bentuk narasi./ Bantu mereka untuk bacakan dan jelaskan file yang dikirim kepada anda dalam bahasa Indonesia.",
+                            "url": f"data:image/jpeg;base64,{image_data}"
+                        }
+                    }
+                ]
             }
         ],
         "temperature": 0.5,
         "top_p": 0.95,
-        "max_tokens": 800,
+        "max_tokens": 800
     }
 
     try:
@@ -48,64 +55,42 @@ def perform_transcription(image_content):
             f"{AZURE_OPENAI_ENDPOINT}/openai/deployments/gpt-4o/chat/completions?api-version=2024-02-15-preview",
             headers=headers, json=payload)
         response.raise_for_status()
-        res = response.json()
-        print(f'API Response: {json.dumps(res, indent=2)}')  # Detailed API response for debugging
 
-        if 'choices' in res and len(res['choices']) > 0:
-            transcription_output = res['choices'][0]['message']['content']
-            return transcription_output
-        else:
-            print('No valid response from API')
-            return None
     except requests.RequestException as e:
-        print(f"Failed to make the request. Error: {e}")
-        return None
+        raise SystemExit(f"Failed to make the request. Error: {e}")
 
-# Function to translate text to Bahasa Indonesia using OpenAI
-def translate_to_indonesian(text):
-    headers = {
-        "Content-Type": "application/json",
-        "api-key": AZURE_OPENAI_API_KEY,
-    }
+    res = response.json()
+    ocr_text = res['choices'][0]['message']['content']
 
-    prompt = f"Terjemahkan teks berikut ke Bahasa Indonesia:\n\n{text}"
-    payload = {
-        "messages": [
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ],
-        "temperature": 0.5,
-        "top_p": 0.95,
-        "max_tokens": 800,
-    }
+    return ocr_text
 
-    try:
-        response = requests.post(
-            f"{AZURE_OPENAI_ENDPOINT}/openai/deployments/gpt-4o/chat/completions?api-version=2024-02-15-preview",
-            headers=headers, json=payload)
-        response.raise_for_status()
-        res = response.json()
-        print(f'Translation API Response: {json.dumps(res, indent=2)}')  # Detailed API response for debugging
-        if 'choices' in res and len(res['choices']) > 0:
-            translated_text = res['choices'][0]['message']['content']
-            return translated_text
-        else:
-            print('No valid response from API')
-            return None
-    except requests.RequestException as e:
-        print(f"Failed to make the request. Error: {e}")
-        return None
 
 # Function to clean and format text
 def clean_text(text):
+    # Replace multiple spaces with a single space
     text = re.sub(r'\s+', ' ', text)
+    # Remove backslashes
     text = text.replace('\\', '')
+    # Ensure sentences are well-separated
     text = re.sub(r'(?<!\.)\n(?!\.)', '. ', text)
+    # Add a period at the end if not present
     if text and text[-1] not in {'.', '!', '?'}:
         text += '.'
     return text
+
+
+# Function to convert text to speech using Azure Speech SDK
+def text_to_speech(content):
+    import azure.cognitiveservices.speech as speechsdk
+
+    speech_config = speechsdk.SpeechConfig(subscription=SPEECH_KEY, region=SERVICE_REGION)
+    audio_config = speechsdk.audio.AudioOutputConfig(filename="output_audio.wav")  # Save audio to file
+
+    speech_synthesizer = speechsdk.SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
+    result = speech_synthesizer.speak_text_async(content).get()
+
+    return "output_audio.wav"
+
 
 # Function to convert PDF to images
 def pdf_to_images(pdf_content):
@@ -120,10 +105,12 @@ def pdf_to_images(pdf_content):
         images.append(img_byte_arr.getvalue())
     return images
 
+
 # Streamlit app
 def main():
     st.title("NETRA AI")
 
+    # Centering the main content
     st.header("Ubah Materi Teks dan Gambar Menjadi Audio")
     uploaded_file = st.file_uploader("Pilih file PDF atau Gambar", type=['pdf', 'jpg', 'jpeg', 'png'])
 
@@ -132,38 +119,36 @@ def main():
         file_type = uploaded_file.type
 
         if file_type.startswith('image/'):
-            transcription_output = perform_transcription(file_content)
-            if transcription_output:
-                st.write(f'Transcription Output: {transcription_output}')  # Debugging statement to check the transcription output
-                translated_result = translate_to_indonesian(transcription_output)
-                if translated_result:
-                    st.write(f'Translated Output: {translated_result}')
-                else:
-                    st.error("Failed to translate the transcription output.")
-            else:
-                st.error("Failed to perform transcription.")
+            # Perform OCR on image
+            ocr_result = ocr_image(file_content)
+
+            # Clean and format OCR result
+            clean_ocr_result = clean_text(ocr_result)
+
+            # Convert OCR result to speech
+            audio_file = text_to_speech(clean_ocr_result)
+            st.audio(audio_file, format='audio/wav')
 
         elif file_type == 'application/pdf':
+            # Process PDF pages to images and perform OCR on each page
             images = pdf_to_images(file_content)
-            full_transcription_output = ""
+            full_ocr_result = ""
             for image in images:
-                transcription_output = perform_transcription(image)
-                if transcription_output:
-                    full_transcription_output += transcription_output + "\n"
-            if full_transcription_output:
-                st.write(f'Full Transcription Output: {full_transcription_output}')  # Debugging statement to check the full transcription output
-                translated_result = translate_to_indonesian(full_transcription_output)
-                if translated_result:
-                    st.write(f'Translated Output: {translated_result}')
-                else:
-                    st.error("Failed to translate the transcription output from PDF.")
-            else:
-                st.error("Failed to perform transcription from PDF.")
+                ocr_result = ocr_image(image)
+                full_ocr_result += ocr_result + "\n"
+
+            # Clean and format full OCR result
+            clean_full_ocr_result = clean_text(full_ocr_result)
+
+            # Convert full OCR result to speech
+            audio_file = text_to_speech(clean_full_ocr_result)
+            st.audio(audio_file, format='audio/wav')
 
         else:
             st.warning("Format file tidak didukung. Harap unggah PDF atau gambar.")
 
     st.markdown("<p style='text-align: center;'>Powered by OpenAI and Azure Speech SDK</p>", unsafe_allow_html=True)
+
 
 if __name__ == '__main__':
     main()
