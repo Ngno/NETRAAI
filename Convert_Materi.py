@@ -38,18 +38,22 @@ def ocr_image(image_content):
                     {
                         "type": "image_url",
                         "image_url": {
-                            "text": "Kamu adalah seorang guru dengan murid yang memiliki keterbatasan penglihatan (tuna netra) di Indonesia. / Oleh karena itu, kamu harus menjelaskan teks dalam bentuk narasi./ Bantu mereka untuk bacakan dan jelaskan file yang dikirim kepada anda dalam bahasa Indonesia. Hanya gunakan bahasa Inggris jika file yang dikirim merupakan soal atau tugas mata pelajaran bahasa Inggris.",
+                            "text": "Kamu adalah seorang guru dengan murid yang memiliki keterbatasan penglihatan (tuna netra) di Indonesia. / Oleh karena itu, kamu harus menjelaskan teks dalam bentuk narasi./ Bantu mereka untuk bacakan dan jelaskan file yang dikirim kepada anda dalam bahasa Indonesia.",
                             "url": f"data:image/jpeg;base64,{image_data}"
                         }
                     }
                 ]
+            },
+            {
+                "role": "user",
+                "content": "Ingat, penjelasanmu harus dalam Bahasa Indonesia.",
             }
         ],
         "temperature": 0.5,
         "top_p": 0.95,
         "max_tokens": 800
     }
-
+    
     try:
         response = requests.post(
             f"{AZURE_OPENAI_ENDPOINT}/openai/deployments/gpt-4o/chat/completions?api-version=2024-02-15-preview",
